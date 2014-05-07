@@ -15,20 +15,45 @@
  */
 package com.squareup.wire;
 
+import com.squareup.wire.protos.redacted.NotRedacted;
 import com.squareup.wire.protos.redacted.Redacted;
-import com.squareup.wire.protos.unknownfields.VersionOne;
-import com.squareup.wire.protos.unknownfields.VersionTwo;
+import com.squareup.wire.protos.redacted.RedactedChild;
 import org.junit.Test;
 
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotSame;
 
 public class RedactedTest {
 
   @Test
   public void testRedacted() throws IOException {
     assertEquals("Redacted{b=b, c=c}", new Redacted.Builder().a("a").b("b").c("c").build().toString());
+  }
+
+  @Test
+  public void testRedactor() {
+    Redacted message = new Redacted.Builder().a("a").b("b").c("c").build();
+    Redacted expected = new Redacted.Builder(message).a(null).build();
+    assertEquals(expected, Redactor.get(Redacted.class).redact(message));
+  }
+
+  @Test
+  public void testRedactorNoRedactions() {
+    NotRedacted message = new NotRedacted.Builder().a("a").b("b").build();
+    assertEquals(message, Redactor.get(NotRedacted.class).redact(message));
+  }
+
+  @Test
+  public void testRedactorRecursive() {
+    RedactedChild message = new RedactedChild.Builder()
+        .a("a")
+        .b(new Redacted.Builder().a("a").b("b").c("c").build())
+        .c(new NotRedacted.Builder().a("a").b("b").build())
+        .build();
+    RedactedChild expected = new RedactedChild.Builder(message)
+        .b(new Redacted.Builder(message.b).a(null).build())
+        .build();
+    assertEquals(expected, Redactor.get(RedactedChild.class).redact(message));
   }
 }
